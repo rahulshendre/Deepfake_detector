@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deepfake Detector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="header">
+    <h1>Deepfake Detection</h1>
+    <span class="tagline">Verify Authenticity</span>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="image">
+      <span class="tab-num">01</span>
+      <span class="tab-label">Image</span>
+    </button>
+    <button class="tab" data-tab="video">
+      <span class="tab-num">02</span>
+      <span class="tab-label">Video</span>
+    </button>
+    <button class="tab" data-tab="audio">
+      <span class="tab-num">03</span>
+      <span class="tab-label">Audio</span>
+    </button>
+  </nav>
+
+  <!-- Image Tab -->
+  <main class="tab-content active" id="image-tab">
+    <div class="section-header">
+      <h2 class="section-title">Photograph</h2>
+      <span class="section-formats">PNG, JPG, WebP, GIF</span>
+    </div>
+    
+    <div class="upload-area" data-type="image">
+      <input type="file" id="image-input" accept="image/*" hidden>
+      <span class="upload-icon">◐</span>
+      <span class="upload-text">Drop file or click</span>
+    </div>
+    
+    <div class="preview-area" id="image-preview"></div>
+    <div class="file-info" id="image-filename"></div>
+    
+    <button class="analyze-btn" id="image-btn" disabled>Run Analysis →</button>
+    
+    <div class="loading" id="image-loading">
+      <span class="loading-text">Processing...</span>
+      <div class="loading-bar"></div>
+    </div>
+    
+    <div class="result" id="image-result"></div>
+  </main>
+
+  <!-- Video Tab -->
+  <main class="tab-content" id="video-tab">
+    <div class="section-header">
+      <h2 class="section-title">Motion Picture</h2>
+      <span class="section-formats">MP4, MOV, AVI, WebM</span>
+    </div>
+    
+    <div class="upload-area" data-type="video">
+      <input type="file" id="video-input" accept="video/*" hidden>
+      <span class="upload-icon">◑</span>
+      <span class="upload-text">Drop file or click</span>
+    </div>
+    
+    <div class="preview-area" id="video-preview"></div>
+    <div class="file-info" id="video-filename"></div>
+    
+    <button class="analyze-btn" id="video-btn" disabled>Run Analysis →</button>
+    
+    <div class="loading" id="video-loading">
+      <span class="loading-text">Processing...</span>
+      <div class="loading-bar"></div>
+    </div>
+    
+    <div class="result" id="video-result"></div>
+  </main>
+
+  <!-- Audio Tab -->
+  <main class="tab-content" id="audio-tab">
+    <div class="section-header">
+      <h2 class="section-title">Sound Recording</h2>
+      <span class="section-formats">MP3, WAV, OGG, FLAC</span>
+    </div>
+    
+    <div class="upload-area" data-type="audio">
+      <input type="file" id="audio-input" accept="audio/*" hidden>
+      <span class="upload-icon">◒</span>
+      <span class="upload-text">Drop file or click</span>
+    </div>
+    
+    <div class="preview-area" id="audio-preview"></div>
+    <div class="file-info" id="audio-filename"></div>
+    
+    <button class="analyze-btn" id="audio-btn" disabled>Run Analysis →</button>
+    
+    <div class="loading" id="audio-loading">
+      <span class="loading-text">Processing...</span>
+      <div class="loading-bar"></div>
+    </div>
+    
+    <div class="result" id="audio-result"></div>
+  </main>
+
+  <footer class="footer">
+    <div class="server-status" id="server-status">
+      <span class="status-dot"></span>
+      <span class="status-text">Checking...</span>
+    </div>
+    <span class="version">v1.0</span>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

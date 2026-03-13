@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deepfake Detection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Mono', monospace;
+            background: #f5f3ef;
+            min-height: 100vh;
+            color: #1a1a1a;
+            padding: 0;
+        }
+
+        .header {
+            border-bottom: 2px solid #1a1a1a;
+            padding: 30px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        h1 {
+            font-family: 'Instrument Serif', serif;
+            font-size: 2.8rem;
+            font-weight: 400;
+            letter-spacing: -1px;
+        }
+
+        .tagline {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #666;
+        }
+
+        .main {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            min-height: calc(100vh - 100px);
+        }
+
+        .upload-section {
+            border-right: 2px solid #1a1a1a;
+            padding: 40px 30px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .upload-section:last-child {
+            border-right: none;
+        }
+
+        .section-number {
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            color: #999;
+            margin-bottom: 15px;
+        }
+
+        .section-title {
+            font-family: 'Instrument Serif', serif;
+            font-size: 1.8rem;
+            font-weight: 400;
+            margin-bottom: 8px;
+        }
+
+        .section-desc {
+            font-size: 0.7rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .drop-zone {
+            flex: 1;
+            border: 1px dashed #bbb;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 200px;
+            position: relative;
+        }
+
+        .drop-zone:hover {
+            border-color: #1a1a1a;
+            background: #fff;
+        }
+
+        .drop-zone.dragover {
+            border-color: #1a1a1a;
+            border-style: solid;
+            background: #fff;
+        }
+
+        .drop-zone input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .drop-icon {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            opacity: 0.4;
+        }
+
+        .drop-text {
+            font-size: 0.75rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .preview {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .preview.show {
+            display: block;
+        }
+
+        .preview img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            filter: grayscale(30%);
+        }
+
+        .preview video {
+            width: 100%;
+            max-height: 120px;
+        }
+
+        .preview audio {
+            width: 100%;
+        }
+
+        .file-name {
+            font-size: 0.7rem;
+            color: #1a1a1a;
+            margin-top: 10px;
+            word-break: break-all;
+            font-style: italic;
+        }
+
+        .analyze-btn {
+            margin-top: 25px;
+            padding: 15px 20px;
+            background: #1a1a1a;
+            border: none;
+            color: #f5f3ef;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .analyze-btn.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .analyze-btn.active:hover {
+            background: #333;
+            letter-spacing: 3px;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 25px;
+            text-align: center;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .loading-text {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #666;
+        }
+
+        .loading-bar {
+            height: 2px;
+            background: #ddd;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .loading-bar::after {
+            content: '';
+            position: absolute;
+            left: -50%;
+            width: 50%;
+            height: 100%;
+            background: #1a1a1a;
+            animation: loading 1s ease-in-out infinite;
+        }
+
+        @keyframes loading {
+            0% { left: -50%; }
+            100% { left: 100%; }
+        }
+
+        .result {
+            margin-top: 25px;
+            padding: 20px;
+            display: none;
+            border: 1px solid;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result.real {
+            border-color: #2d5a3d;
+            background: #e8f0ea;
+        }
+
+        .result.fake {
+            border-color: #8b3a3a;
+            background: #f5eaea;
+        }
+
+        .result.pending {
+            border-color: #8b7355;
+            background: #f5f0ea;
+        }
+
+        .result-label {
+            font-family: 'Instrument Serif', serif;
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+        }
+
+        .result.real .result-label { color: #2d5a3d; }
+        .result.fake .result-label { color: #8b3a3a; }
+        .result.pending .result-label { color: #8b7355; }
+
+        .result-detail {
+            font-size: 0.7rem;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .footer {
+            border-top: 2px solid #1a1a1a;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #999;
+        }
+
+        @media (max-width: 900px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+            .upload-section {
+                border-right: none;
+                border-bottom: 2px solid #1a1a1a;
+            }
+            .upload-section:last-child {
+                border-bottom: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>Deepfake Detection</h1>
+        <span class="tagline">Verify Authenticity</span>
+    </header>
+
+    <main class="main">
+        <section class="upload-section">
+            <span class="section-number">01 — IMAGE</span>
+            <h2 class="section-title">Photograph</h2>
+            <p class="section-desc">PNG, JPG, WebP, GIF</p>
+            
+            <div class="drop-zone" data-type="image">
+                <input type="file" accept="image/*" id="image-input">
+                <span class="drop-icon">◐</span>
+                <span class="drop-text">Drop file or click</span>
+            </div>
+            
+            <div class="preview" id="image-preview"></div>
+            <div class="file-name" id="image-filename"></div>
+            
+            <button class="analyze-btn" id="image-btn" onclick="analyze('image')">
+                Run Analysis →
+            </button>
+            
+            <div class="loading" id="image-loading">
+                <span class="loading-text">Processing...</span>
+                <div class="loading-bar"></div>
+            </div>
+            
+            <div class="result" id="image-result">
+                <div class="result-label"></div>
+                <div class="result-detail"></div>
+            </div>
+        </section>
+
+        <section class="upload-section">
+            <span class="section-number">02 — VIDEO</span>
+            <h2 class="section-title">Motion Picture</h2>
+            <p class="section-desc">MP4, MOV, AVI, WebM</p>
+            
+            <div class="drop-zone" data-type="video">
+                <input type="file" accept="video/*" id="video-input">
+                <span class="drop-icon">◑</span>
+                <span class="drop-text">Drop file or click</span>
+            </div>
+            
+            <div class="preview" id="video-preview"></div>
+            <div class="file-name" id="video-filename"></div>
+            
+            <button class="analyze-btn" id="video-btn" onclick="analyze('video')">
+                Run Analysis →
+            </button>
+            
+            <div class="loading" id="video-loading">
+                <span class="loading-text">Processing...</span>
+                <div class="loading-bar"></div>
+            </div>
+            
+            <div class="result" id="video-result">
+                <div class="result-label"></div>
+                <div class="result-detail"></div>
+            </div>
+        </section>
+
+        <section class="upload-section">
+            <span class="section-number">03 — AUDIO</span>
+            <h2 class="section-title">Sound Recording</h2>
+            <p class="section-desc">MP3, WAV, OGG, FLAC</p>
+            
+            <div class="drop-zone" data-type="audio">
+                <input type="file" accept="audio/*" id="audio-input">
+                <span class="drop-icon">◒</span>
+                <span class="drop-text">Drop file or click</span>
+            </div>
+            
+            <div class="preview" id="audio-preview"></div>
+            <div class="file-name" id="audio-filename"></div>
+            
+            <button class="analyze-btn" id="audio-btn" onclick="analyze('audio')">
+                Run Analysis →
+            </button>
+            
+            <div class="loading" id="audio-loading">
+                <span class="loading-text">Processing...</span>
+                <div class="loading-bar"></div>
+            </div>
+            
+            <div class="result" id="audio-result">
+                <div class="result-label"></div>
+                <div class="result-detail"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <span>ML Detection System</span>
+        <span>v1.0</span>
+    </footer>
+
+    <script>
+        const files = { image: null, video: null, audio: null };
+
+        document.querySelectorAll('input[type="file"]').forEach(input => {
+            const type = input.id.replace('-input', '');
+            input.addEventListener('change', (e) => handleFile(e.target.files[0], type));
+        });
+
+        document.querySelectorAll('.drop-zone').forEach(zone => {
+            const type = zone.dataset.type;
+            
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('dragover');
+            });
+            
+            zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+            
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+                handleFile(e.dataTransfer.files[0], type);
+            });
+        });
+
+        function handleFile(file, type) {
+            if (!file) return;
+            
+            files[type] = file;
+            document.getElementById(`${type}-filename`).textContent = file.name;
+            document.getElementById(`${type}-btn`).classList.add('active');
+            document.getElementById(`${type}-result`).classList.remove('show');
+            
+            const preview = document.getElementById(`${type}-preview`);
+            preview.innerHTML = '';
+            preview.classList.add('show');
+            
+            const url = URL.createObjectURL(file);
+            
+            if (type === 'image') {
+                const img = document.createElement('img');
+                img.src = url;
+                preview.appendChild(img);
+            } else if (type === 'video') {
+                const video = document.createElement('video');
+                video.src = url;
+                video.controls = true;
+                preview.appendChild(video);
+            } else if (type === 'audio') {
+                const audio = document.createElement('audio');
+                audio.src = url;
+                audio.controls = true;
+                preview.appendChild(audio);
+            }
+        }
+
+        async function analyze(type) {
+            const file = files[type];
+            if (!file) return;
+            
+            const btn = document.getElementById(`${type}-btn`);
+            const loading = document.getElementById(`${type}-loading`);
+            const result = document.getElementById(`${type}-result`);
+            
+            btn.style.display = 'none';
+            loading.classList.add('show');
+            result.classList.remove('show', 'real', 'fake', 'pending');
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('type', type);
+            
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                loading.classList.remove('show');
+                btn.style.display = 'block';
+                
+                if (data.error) {
+                    result.classList.add('show', 'pending');
+                    result.querySelector('.result-label').textContent = 'Error';
+                    result.querySelector('.result-detail').textContent = data.error;
+                } else {
+                    const isFake = data.is_fake;
+                    const confidence = (data.confidence * 100).toFixed(1);
+                    
+                    result.classList.add('show', isFake ? 'fake' : 'real');
+                    result.querySelector('.result-label').textContent = isFake ? 'Likely Manipulated' : 'Appears Authentic';
+                    result.querySelector('.result-detail').textContent = data.message || `Confidence score: ${confidence}%`;
+                }
+            } catch (error) {
+                loading.classList.remove('show');
+                btn.style.display = 'block';
+                result.classList.add('show', 'pending');
+                result.querySelector('.result-label').textContent = 'Connection Failed';
+                result.querySelector('.result-detail').textContent = 'Unable to reach the analysis server.';
+            }
+        }
+    </script>
+</body>
+</html>
