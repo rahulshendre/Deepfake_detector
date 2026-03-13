@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 .env
 .cursor/
+Deepfake-audio-detection/
+*.mp4
+*.mp3
