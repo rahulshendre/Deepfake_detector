@@ -28,7 +28,7 @@ git clone https://huggingface.co/mo-thecreator/Deepfake-audio-detection
 python3 app.py
 ```
 
-4. Open your browser: `http://localhost:5000`
+4. Open your browser: `http://127.0.0.1:5001`
 
 ## Features
 
@@ -47,14 +47,18 @@ python3 app.py
 1. Open Chrome → `chrome://extensions/`
 2. Enable **Developer mode**
 3. Click **Load unpacked** → Select the `extension` folder
-4. Make sure Flask server is running, then use the extension
+4. Run the Flask app (`python3 app.py`) — it listens on **http://127.0.0.1:5001** (port 5001 avoids macOS AirPlay using port 5000)
+5. **Toolbar:** Open the popup to upload files  
+6. **Right‑click any image** on a webpage → **Analyze image for deepfake** — opens a full tab so the window stays open (the small popup closes if you drag files elsewhere; use this for images on the page)
+
+The extension needs permission to reach your local server and to download images you right‑click (http/https).
 
 ## API
 
 **POST /analyze**
 
 ```bash
-curl -X POST -F "file=@image.jpg" -F "type=image" http://localhost:5000/analyze
+curl -X POST -F "file=@image.jpg" -F "type=image" http://127.0.0.1:5001/analyze
 ```
 
 Response:

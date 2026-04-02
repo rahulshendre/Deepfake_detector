@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000';
+const API_URL = 'http://127.0.0.1:5001';
 const files = { image: null, video: null, audio: null };
 
 // Tab switching
@@ -110,7 +110,7 @@ async function analyze(type) {
       showResult(type, 'error', 'Error', data.error);
     } else {
       const isFake = data.is_fake;
-      const confidence = (data.confidence * 100).toFixed(1);
+      const confidence = Number(data.confidence ?? 0).toFixed(1);
       const label = isFake ? 'Likely Manipulated' : 'Appears Authentic';
       const message = data.message || `Confidence score: ${confidence}%`;
       showResult(type, isFake ? 'fake' : 'real', label, message);
@@ -118,7 +118,7 @@ async function analyze(type) {
   } catch (error) {
     loading.classList.remove('show');
     btn.style.display = 'block';
-    showResult(type, 'error', 'Connection Failed', 'Server offline — run python3 app.py');
+    showResult(type, 'error', 'Connection Failed', 'Server offline — run: python3 app.py (port 5001)');
   }
 }
 

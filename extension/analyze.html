@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analyze image — Deepfake Detector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="page-analyze">
+  <header class="header header-wide">
+    <h1>Deepfake Detection</h1>
+    <span class="tagline">Image from page</span>
+  </header>
+
+  <main class="analyze-main">
+    <p class="analyze-hint" id="source-hint"></p>
+    <div class="preview-area analyze-preview" id="analyze-preview"></div>
+    <div class="loading show" id="analyze-loading">
+      <span class="loading-text" id="loading-label">Loading image…</span>
+      <div class="loading-bar"></div>
+    </div>
+    <div class="result" id="analyze-result"></div>
+  </main>
+
+  <footer class="footer footer-wide">
+    <div class="server-status" id="server-status">
+      <span class="status-dot"></span>
+      <span class="status-text">Checking…</span>
+    </div>
+    <span class="version">v1.1</span>
+  </footer>
+
+  <script src="analyze.js"></script>
+</body>
+</html>

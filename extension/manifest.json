@@ -1,9 +1,18 @@
 {
   "manifest_version": 3,
   "name": "Deepfake Detector",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Detect deepfakes in images, videos, and audio files",
-  "permissions": [],
+  "permissions": ["contextMenus"],
+  "host_permissions": [
+    "http://127.0.0.1:5001/*",
+    "http://localhost:5001/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

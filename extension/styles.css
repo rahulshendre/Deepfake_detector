@@ -12,6 +12,46 @@ body {
   min-height: 480px;
 }
 
+body.page-analyze {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding-bottom: 56px;
+}
+
+.header-wide {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.footer-wide {
+  position: fixed;
+  max-width: 520px;
+  margin: 0 auto;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+}
+
+.analyze-main {
+  padding: 20px 20px 24px;
+}
+
+.analyze-hint {
+  font-size: 0.6rem;
+  color: #888;
+  word-break: break-all;
+  line-height: 1.4;
+  margin-bottom: 16px;
+}
+
+.analyze-preview img {
+  max-height: 220px;
+  object-fit: contain;
+  background: #e8e6e2;
+}
+
 /* Header */
 .header {
   padding: 18px 20px;
@@ -299,12 +339,20 @@ h1 {
   padding: 12px 20px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
+  gap: 8px;
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   background: #f5f3ef;
+}
+
+.footer-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 
 .server-status {
@@ -335,4 +383,12 @@ h1 {
   color: #999;
   text-transform: uppercase;
   letter-spacing: 1px;
+}
+
+.footer-tip {
+  font-size: 0.55rem;
+  color: #aaa;
+  max-width: 120px;
+  text-align: right;
+  line-height: 1.2;
 }
