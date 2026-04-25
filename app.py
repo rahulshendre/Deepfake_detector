@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import os
 import json
+import sys
 import numpy as np
 from PIL import Image
 from werkzeug.utils import secure_filename
@@ -9,15 +10,23 @@ import torch
 from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor
 import librosa
 import cv2
+from huggingface_hub import hf_hub_download
 
 app = Flask(__name__)
 
 IMAGE_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'deepfake_cnn.keras')
 AUDIO_MODEL_PATH = os.path.join(os.path.dirname(__file__), 'Deepfake-audio-detection')
+VIDEO_MODEL_REPO_ID = os.environ.get("VIDEO_MODEL_REPO_ID", "Naman712/Deep-fake-detection")
+VIDEO_MODEL_LOCAL_PATH = os.environ.get("VIDEO_MODEL_PATH", "")
+VIDEO_MODEL_WEIGHTS = "model_87_acc_20_frames_final_data.pt"
+VIDEO_SEQUENCE_LENGTH = 20
+VIDEO_MODEL_CACHE_DIR = os.path.join(os.path.dirname(__file__), "model_cache")
 
 image_model = None
 audio_model = None
 audio_feature_extractor = None
+video_model = None
+video_processor = None
 
 
 def load_image_model():
@@ -50,6 +59,102 @@ def load_audio_model():
         audio_model.eval()
         print("Audio model loaded!")
     return audio_model, audio_feature_extractor
+
+
+def load_video_model():
+    global video_model, video_processor
+    if video_model is not None and video_processor is not None:
+        return video_model, video_processor
+
+    print("Loading video model with strict repo parity...")
+
+    local_model_dir = VIDEO_MODEL_LOCAL_PATH if os.path.isdir(VIDEO_MODEL_LOCAL_PATH) else None
+    if local_model_dir is None:
+        os.makedirs(VIDEO_MODEL_CACHE_DIR, exist_ok=True)
+        token = os.environ.get("HUGGINGFACE_TOKEN")
+        files_to_download = [
+            "modeling_deepfake.py",
+            "processor_deepfake.py",
+            "modeling.py",
+            VIDEO_MODEL_WEIGHTS,
+            "config.json",
+        ]
+        for filename in files_to_download:
+            local_path = os.path.join(VIDEO_MODEL_CACHE_DIR, filename)
+            if not os.path.exists(local_path):
+                hf_hub_download(
+                    repo_id=VIDEO_MODEL_REPO_ID,
+                    filename=filename,
+                    token=token,
+                    local_dir=VIDEO_MODEL_CACHE_DIR,
+                    local_dir_use_symlinks=False,
+                )
+        local_model_dir = VIDEO_MODEL_CACHE_DIR
+
+    if local_model_dir not in sys.path:
+        sys.path.insert(0, local_model_dir)
+
+    model_path = os.path.join(local_model_dir, VIDEO_MODEL_WEIGHTS)
+    if not os.path.isfile(model_path):
+        raise FileNotFoundError(f"Video model weights not found: {model_path}")
+
+    # Model loading parity: try original HF custom class first, fallback to known architecture.
+    try:
+        from modeling_deepfake import DeepFakeDetectorModel
+        video_model = DeepFakeDetectorModel.from_pretrained(model_path)
+    except Exception:
+        from modeling import DeepFakeDetector
+        video_model = DeepFakeDetector(2)
+        state_dict = torch.load(model_path, map_location=torch.device("cpu"))
+        video_model.load_state_dict(state_dict)
+    video_model.eval()
+
+    # Processor loading parity: try original processor, fallback to simplified processor.
+    try:
+        from processor_deepfake import DeepFakeProcessor
+        video_processor = DeepFakeProcessor()
+    except Exception:
+        class SimpleDeepFakeProcessor:
+            def __init__(self, im_size=112, mean=None, std=None):
+                self.im_size = im_size
+                self.mean = mean if mean is not None else [0.485, 0.456, 0.406]
+                self.std = std if std is not None else [0.229, 0.224, 0.225]
+
+            def preprocess_frame(self, frame):
+                if isinstance(frame, np.ndarray):
+                    frame = Image.fromarray(frame)
+                frame = frame.resize((self.im_size, self.im_size))
+                frame = np.array(frame).astype(np.float32) / 255.0
+                frame = (frame - np.array(self.mean)) / np.array(self.std)
+                frame = frame.transpose(2, 0, 1)
+                return torch.tensor(frame, dtype=torch.float32)
+
+        video_processor = SimpleDeepFakeProcessor()
+
+    print("Video model loaded!")
+    return video_model, video_processor
+
+
+def extract_frames_from_video(video_path, max_frames=20):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        return []
+
+    frames = []
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if total_frames <= 0:
+        cap.release()
+        return []
+
+    frame_indices = np.linspace(0, total_frames - 1, min(max_frames, total_frames), dtype=int)
+    for frame_idx in frame_indices:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int(frame_idx))
+        ret, frame = cap.read()
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frames.append(Image.fromarray(frame))
+    cap.release()
+    return frames
 
 # Enable CORS for Chrome extension
 @app.after_request
@@ -89,72 +194,49 @@ def preprocess_audio(filepath):
     return audio
 
 
-def preprocess_frame(frame):
-    """Preprocess a video frame (numpy array from OpenCV) for the CNN model."""
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame_resized = cv2.resize(frame_rgb, (256, 256))
-    frame_array = np.array(frame_resized, dtype=np.float32) / 255.0
-    frame_array = np.expand_dims(frame_array, axis=0)
-    return frame_array
-
-
-def analyze_video_frames(filepath, max_frames=30):
+def analyze_video_with_model(filepath):
     """
-    Extract frames from video and analyze each for deepfakes.
-    Returns aggregated results from all analyzed frames.
+    Analyze video with strict parity to reference repo flow.
     """
-    cap = cv2.VideoCapture(filepath)
-    
-    if not cap.isOpened():
-        return None, "Could not open video file"
-    
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    duration = total_frames / fps if fps > 0 else 0
-    
-    frame_interval = max(1, total_frames // max_frames)
-    
-    model = load_image_model()
-    
-    fake_scores = []
-    real_scores = []
-    frames_analyzed = 0
-    
-    print(f"Analyzing video: {filepath}")
-    print(f"Duration: {duration:.1f}s, FPS: {fps:.1f}, Total frames: {total_frames}")
-    print(f"Sampling every {frame_interval} frames (analyzing up to {max_frames} frames)")
-    
-    for frame_idx in range(0, total_frames, frame_interval):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-        ret, frame = cap.read()
-        
-        if not ret:
-            continue
-        
-        frame_array = preprocess_frame(frame)
-        predictions = model.predict(frame_array, verbose=0)
-        
-        fake_scores.append(float(predictions[0][0]))
-        real_scores.append(float(predictions[0][1]))
-        frames_analyzed += 1
-        
-        if frames_analyzed >= max_frames:
-            break
-    
-    cap.release()
-    
-    if frames_analyzed == 0:
-        return None, "Could not extract any frames from video"
-    
-    avg_fake = np.mean(fake_scores)
-    avg_real = np.mean(real_scores)
-    
+    model, processor = load_video_model()
+    frames = extract_frames_from_video(filepath, max_frames=VIDEO_SEQUENCE_LENGTH)
+    if not frames:
+        raise ValueError("Could not extract frames from video")
+
+    processed_frames = [processor.preprocess_frame(frame) for frame in frames]
+
+    # strict parity: enforce exactly 20 frames
+    if len(processed_frames) >= VIDEO_SEQUENCE_LENGTH:
+        indices = np.linspace(0, len(processed_frames) - 1, VIDEO_SEQUENCE_LENGTH, dtype=int)
+        batch_frames = [processed_frames[i] for i in indices]
+    else:
+        batch_frames = processed_frames.copy()
+        while len(batch_frames) < VIDEO_SEQUENCE_LENGTH:
+            batch_frames.append(batch_frames[-1] if batch_frames else torch.zeros((3, 112, 112)))
+        batch_frames = batch_frames[:VIDEO_SEQUENCE_LENGTH]
+
+    input_tensor = torch.stack(batch_frames).unsqueeze(0)
+
+    with torch.no_grad():
+        outputs = model(input_tensor)
+        if hasattr(outputs, "logits"):
+            logits = outputs.logits
+        elif isinstance(outputs, tuple):
+            _, logits = outputs
+        else:
+            logits = outputs
+        probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
+
+    # strict parity with repo backend app.py mapping:
+    # index 0 = real, index 1 = fake
+    real_prob = float(probs[0])
+    fake_prob = float(probs[1])
+
     return {
-        'avg_fake': avg_fake,
-        'avg_real': avg_real,
-        'frames_analyzed': frames_analyzed,
-        'duration': duration
-    }, None
+        "fake_probability": fake_prob,
+        "real_probability": real_prob,
+        "frames_used": len(batch_frames),
+    }
 
 
 def analyze_deepfake(filepath, media_type):
@@ -235,31 +317,20 @@ def analyze_deepfake(filepath, media_type):
     
     elif media_type == 'video':
         try:
-            result, error = analyze_video_frames(filepath)
-            
-            if error:
-                return {
-                    'is_fake': None,
-                    'confidence': 0.0,
-                    'message': f'Error analyzing video: {error}'
-                }
-            
-            avg_fake = result['avg_fake']
-            avg_real = result['avg_real']
-            frames_analyzed = result['frames_analyzed']
-            duration = result['duration']
-            
-            is_fake = bool(avg_fake > avg_real)
-            confidence = avg_fake if is_fake else avg_real
+            print(f"Analyzing video with dedicated model: {filepath}")
+            result = analyze_video_with_model(filepath)
+            fake_prob = result["fake_probability"]
+            real_prob = result["real_probability"]
+            is_fake = bool(fake_prob > real_prob)
+            confidence = fake_prob if is_fake else real_prob
             
             return {
                 'is_fake': is_fake,
                 'confidence': round(confidence * 100, 2),
-                'fake_probability': round(avg_fake * 100, 2),
-                'real_probability': round(avg_real * 100, 2),
-                'frames_analyzed': frames_analyzed,
-                'video_duration': round(duration, 1),
-                'message': f"{'FAKE video detected' if is_fake else 'Appears REAL video'} with {confidence * 100:.1f}% confidence (analyzed {frames_analyzed} frames from {duration:.1f}s video)"
+                'fake_probability': round(fake_prob * 100, 2),
+                'real_probability': round(real_prob * 100, 2),
+                'model': VIDEO_MODEL_LOCAL_PATH,
+                'message': f"{'FAKE video detected' if is_fake else 'Appears REAL video'} with {confidence * 100:.1f}% confidence"
             }
         except Exception as e:
             import traceback
@@ -317,4 +388,4 @@ def analyze():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='127.0.0.1', port=5001)
+    app.run(debug=True, host='127.0.0.1', port=5002)

@@ -1,4 +1,4 @@
-const API_URL = 'http://127.0.0.1:5001';
+const API_URL = 'http://127.0.0.1:5002';
 
 function showResult(status, label, detail) {
   const result = document.getElementById('analyze-result');
@@ -133,7 +133,7 @@ async function run() {
     showResult(
       'error',
       'Connection failed',
-      'Server offline — run: python3 app.py (listens on http://127.0.0.1:5001)',
+      'Server offline — run: python3 app.py (listens on http://127.0.0.1:5002)',
     );
   }
 }

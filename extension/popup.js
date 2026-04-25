@@ -1,4 +1,4 @@
-const API_URL = 'http://127.0.0.1:5001';
+const API_URL = 'http://127.0.0.1:5002';
 const files = { image: null, video: null, audio: null };
 
 // Tab switching
@@ -118,7 +118,7 @@ async function analyze(type) {
   } catch (error) {
     loading.classList.remove('show');
     btn.style.display = 'block';
-    showResult(type, 'error', 'Connection Failed', 'Server offline — run: python3 app.py (port 5001)');
+    showResult(type, 'error', 'Connection Failed', 'Server offline — run: python3 app.py (port 5002)');
   }
 }
 

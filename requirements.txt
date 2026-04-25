@@ -4,7 +4,11 @@ pillow==10.2.0
 tensorflow>=2.16.0
 numpy>=1.26.0
 transformers>=4.39.0
+huggingface_hub>=0.23.0
+accelerate>=0.30.0
 torch>=2.1.0
+torchvision>=0.16.0
+av>=12.0.0
 librosa>=0.10.0
 soundfile>=0.12.0
 opencv-python>=4.8.0
